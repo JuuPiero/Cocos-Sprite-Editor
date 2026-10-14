@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../source/assets-menu.ts"],
+  "sourcesContent": ["/**\n * Assets panel context menu: \"Sprite Editor\" on images, their texture /\n * sprite-frame sub-assets and .plist atlases.\n */\nconst EDITABLE = new Set(['image', 'texture', 'sprite-frame', 'sprite-atlas']);\n\nexport function onAssetMenu(assetInfo: { uuid: string; importer: string; isDirectory?: boolean }) {\n    if (!assetInfo || assetInfo.isDirectory || !EDITABLE.has(assetInfo.importer)) return [];\n    return [\n        {\n            label: 'Sprite Editor',\n            click() {\n                Editor.Message.send('sprite-editor', 'edit-asset', assetInfo.uuid);\n            },\n        },\n    ];\n}\n"],
+  "mappings": ";;;;;;;;;;;;;;;;;AAAA;AAAA;AAAA;AAAA;AAAA;AAIA,IAAM,WAAW,oBAAI,IAAI,CAAC,SAAS,WAAW,gBAAgB,cAAc,CAAC;AAEtE,SAAS,YAAY,WAAsE;AAC9F,SAAI,CAAC,aAAa,UAAU,eAAe,CAAC,SAAS,IAAI,UAAU,QAAQ,IAAU,CAAC,IAC/E;AAAA,IACH;AAAA,MACI,OAAO;AAAA,MACP,QAAQ;AACJ,eAAO,QAAQ,KAAK,iBAAiB,cAAc,UAAU,IAAI;AAAA,MACrE;AAAA,IACJ;AAAA,EACJ;AACJ;",
+  "names": []
+}

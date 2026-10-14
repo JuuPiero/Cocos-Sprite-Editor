@@ -25,10 +25,12 @@ const options = {
     platform: 'node',
     format: 'cjs',
     target: 'node14',
-    sourcemap: 'inline',
+    sourcemap: 'linked',
     // Vue's CommonJS build includes the template compiler (templates are
     // compiled at runtime from static/template).
     define: { 'process.env.NODE_ENV': '"production"' },
+    // Drops the unused development builds behind `NODE_ENV === 'production'` checks.
+    minifySyntax: true,
     logLevel: 'info',
 };
 

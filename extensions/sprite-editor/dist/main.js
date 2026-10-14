@@ -1,47 +1,155 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
+var __defProp = Object.defineProperty;
+var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: !0 });
+}, __copyProps = (to, from, except, desc) => {
+  if (from && typeof from == "object" || typeof from == "function")
+    for (let key of __getOwnPropNames(from))
+      !__hasOwnProp.call(to, key) && key !== except && __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+  return to;
 };
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.methods = void 0;
-exports.load = load;
-exports.unload = unload;
-// @ts-ignore
-const package_json_1 = __importDefault(require("../package.json"));
-/** Asset the panel should open once it is ready (set by the Assets context menu). */
-let pending = null;
-/**
- * @en Registration method for the main process of Extension
- * @zh 为扩展的主进程的注册方法
- */
-exports.methods = {
-    openPanel() {
-        Editor.Panel.open(package_json_1.default.name);
+var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: !0 }), mod);
+
+// source/main.ts
+var main_exports = {};
+__export(main_exports, {
+  load: () => load,
+  methods: () => methods,
+  unload: () => unload
+});
+module.exports = __toCommonJS(main_exports);
+
+// package.json
+var package_default = {
+  $schema: "./@types/schema/package/index.json",
+  package_version: 2,
+  name: "sprite-editor",
+  version: "1.0.0",
+  author: "Thanh Hoang",
+  editor: ">=3.8.6",
+  scripts: {
+    preinstall: "node ./scripts/preinstall.js",
+    build: "tsc && node ./scripts/build.js",
+    watch: "node ./scripts/build.js --watch",
+    typecheck: "tsc",
+    test: "node ./tests/run.js",
+    preview: "node ./tests/preview/build.js"
+  },
+  description: "i18n:sprite-editor.description",
+  main: "./dist/main.js",
+  devDependencies: {
+    "@cocos/creator-types": "^3.8.6",
+    "@types/node": "^18.17.1",
+    esbuild: "^0.24.2",
+    typescript: "^5.8.2",
+    vue: "^3.1.4"
+  },
+  panels: {
+    default: {
+      title: "Sprite Editor",
+      type: "dockable",
+      main: "dist/panels/default",
+      size: {
+        "min-width": 560,
+        "min-height": 360,
+        width: 1180,
+        height: 760
+      }
+    }
+  },
+  contributions: {
+    menu: [
+      {
+        path: "i18n:menu.panel",
+        label: "i18n:sprite-editor.open_panel",
+        message: "open-panel"
+      }
+    ],
+    messages: {
+      "open-panel": {
+        methods: ["openPanel"]
+      },
+      "edit-asset": {
+        methods: ["editAsset"]
+      },
+      "take-pending": {
+        methods: ["takePending"]
+      },
+      "panel-load-asset": {
+        methods: ["default.loadAsset"]
+      },
+      "selection:select": {
+        methods: ["default.onSelectionSelect"]
+      },
+      "asset-db:asset-change": {
+        methods: ["default.onAssetChange"]
+      },
+      "shortcut-undo": {
+        methods: ["default.shortcutUndo"]
+      },
+      "shortcut-redo": {
+        methods: ["default.shortcutRedo"]
+      },
+      "shortcut-apply": {
+        methods: ["default.shortcutApply"]
+      },
+      "shortcut-delete": {
+        methods: ["default.shortcutDelete"]
+      },
+      "shortcut-select-all": {
+        methods: ["default.shortcutSelectAll"]
+      }
     },
-    /** Open the Sprite Editor on an image / atlas asset (uuid). */
-    async editAsset(uuid) {
-        if (!uuid)
-            return;
-        pending = uuid;
-        await Editor.Panel.open(package_json_1.default.name);
-        // Already-open panel: deliver directly. A freshly opened panel picks it up
-        // through take-pending in ready().
-        Editor.Message.send(package_json_1.default.name, 'panel-load-asset', uuid);
+    shortcuts: [
+      { message: "shortcut-undo", win: "ctrl+z", mac: "cmd+z", when: "PanelName === 'sprite-editor'" },
+      { message: "shortcut-redo", win: "ctrl+shift+z", mac: "cmd+shift+z", when: "PanelName === 'sprite-editor'" },
+      { message: "shortcut-redo", win: "ctrl+y", mac: "cmd+y", when: "PanelName === 'sprite-editor'" },
+      { message: "shortcut-apply", win: "ctrl+s", mac: "cmd+s", when: "PanelName === 'sprite-editor'" },
+      { message: "shortcut-delete", win: "delete", mac: "delete", when: "PanelName === 'sprite-editor'" },
+      { message: "shortcut-delete", win: "backspace", mac: "backspace", when: "PanelName === 'sprite-editor'" },
+      { message: "shortcut-select-all", win: "ctrl+a", mac: "cmd+a", when: "PanelName === 'sprite-editor'" }
+    ],
+    assets: {
+      menu: {
+        methods: "./dist/assets-menu.js",
+        assetMenu: "onAssetMenu"
+      }
     },
-    takePending() {
-        const uuid = pending;
-        pending = null;
-        return uuid;
-    },
+    "asset-db": {
+      mount: {
+        path: "./assets",
+        readonly: !1
+      }
+    }
+  }
 };
-/**
- * @en Method Triggered on Extension Startup
- * @zh 扩展启动时触发的方法
- */
-function load() { }
-/**
- * @en Method triggered when uninstalling the extension
- * @zh 卸载扩展时触发的方法
- */
-function unload() { }
-//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL3NvdXJjZS9tYWluLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7Ozs7OztBQW9DQSxvQkFBMEI7QUFNMUIsd0JBQTRCO0FBMUM1QixhQUFhO0FBQ2IsbUVBQTBDO0FBRTFDLHFGQUFxRjtBQUNyRixJQUFJLE9BQU8sR0FBa0IsSUFBSSxDQUFDO0FBRWxDOzs7R0FHRztBQUNVLFFBQUEsT0FBTyxHQUE0QztJQUM1RCxTQUFTO1FBQ0wsTUFBTSxDQUFDLEtBQUssQ0FBQyxJQUFJLENBQUMsc0JBQVcsQ0FBQyxJQUFJLENBQUMsQ0FBQztJQUN4QyxDQUFDO0lBRUQsK0RBQStEO0lBQy9ELEtBQUssQ0FBQyxTQUFTLENBQUMsSUFBWTtRQUN4QixJQUFJLENBQUMsSUFBSTtZQUFFLE9BQU87UUFDbEIsT0FBTyxHQUFHLElBQUksQ0FBQztRQUNmLE1BQU0sTUFBTSxDQUFDLEtBQUssQ0FBQyxJQUFJLENBQUMsc0JBQVcsQ0FBQyxJQUFJLENBQUMsQ0FBQztRQUMxQywyRUFBMkU7UUFDM0UsbUNBQW1DO1FBQ25DLE1BQU0sQ0FBQyxPQUFPLENBQUMsSUFBSSxDQUFDLHNCQUFXLENBQUMsSUFBSSxFQUFFLGtCQUFrQixFQUFFLElBQUksQ0FBQyxDQUFDO0lBQ3BFLENBQUM7SUFFRCxXQUFXO1FBQ1AsTUFBTSxJQUFJLEdBQUcsT0FBTyxDQUFDO1FBQ3JCLE9BQU8sR0FBRyxJQUFJLENBQUM7UUFDZixPQUFPLElBQUksQ0FBQztJQUNoQixDQUFDO0NBQ0osQ0FBQztBQUVGOzs7R0FHRztBQUNILFNBQWdCLElBQUksS0FBSyxDQUFDO0FBRTFCOzs7R0FHRztBQUNILFNBQWdCLE1BQU0sS0FBSyxDQUFDIiwic291cmNlc0NvbnRlbnQiOlsiLy8gQHRzLWlnbm9yZVxuaW1wb3J0IHBhY2thZ2VKU09OIGZyb20gJy4uL3BhY2thZ2UuanNvbic7XG5cbi8qKiBBc3NldCB0aGUgcGFuZWwgc2hvdWxkIG9wZW4gb25jZSBpdCBpcyByZWFkeSAoc2V0IGJ5IHRoZSBBc3NldHMgY29udGV4dCBtZW51KS4gKi9cbmxldCBwZW5kaW5nOiBzdHJpbmcgfCBudWxsID0gbnVsbDtcblxuLyoqXG4gKiBAZW4gUmVnaXN0cmF0aW9uIG1ldGhvZCBmb3IgdGhlIG1haW4gcHJvY2VzcyBvZiBFeHRlbnNpb25cbiAqIEB6aCDkuLrmianlsZXnmoTkuLvov5vnqIvnmoTms6jlhozmlrnms5VcbiAqL1xuZXhwb3J0IGNvbnN0IG1ldGhvZHM6IHsgW2tleTogc3RyaW5nXTogKC4uLmFueTogYW55KSA9PiBhbnkgfSA9IHtcbiAgICBvcGVuUGFuZWwoKSB7XG4gICAgICAgIEVkaXRvci5QYW5lbC5vcGVuKHBhY2thZ2VKU09OLm5hbWUpO1xuICAgIH0sXG5cbiAgICAvKiogT3BlbiB0aGUgU3ByaXRlIEVkaXRvciBvbiBhbiBpbWFnZSAvIGF0bGFzIGFzc2V0ICh1dWlkKS4gKi9cbiAgICBhc3luYyBlZGl0QXNzZXQodXVpZDogc3RyaW5nKSB7XG4gICAgICAgIGlmICghdXVpZCkgcmV0dXJuO1xuICAgICAgICBwZW5kaW5nID0gdXVpZDtcbiAgICAgICAgYXdhaXQgRWRpdG9yLlBhbmVsLm9wZW4ocGFja2FnZUpTT04ubmFtZSk7XG4gICAgICAgIC8vIEFscmVhZHktb3BlbiBwYW5lbDogZGVsaXZlciBkaXJlY3RseS4gQSBmcmVzaGx5IG9wZW5lZCBwYW5lbCBwaWNrcyBpdCB1cFxuICAgICAgICAvLyB0aHJvdWdoIHRha2UtcGVuZGluZyBpbiByZWFkeSgpLlxuICAgICAgICBFZGl0b3IuTWVzc2FnZS5zZW5kKHBhY2thZ2VKU09OLm5hbWUsICdwYW5lbC1sb2FkLWFzc2V0JywgdXVpZCk7XG4gICAgfSxcblxuICAgIHRha2VQZW5kaW5nKCkge1xuICAgICAgICBjb25zdCB1dWlkID0gcGVuZGluZztcbiAgICAgICAgcGVuZGluZyA9IG51bGw7XG4gICAgICAgIHJldHVybiB1dWlkO1xuICAgIH0sXG59O1xuXG4vKipcbiAqIEBlbiBNZXRob2QgVHJpZ2dlcmVkIG9uIEV4dGVuc2lvbiBTdGFydHVwXG4gKiBAemgg5omp5bGV5ZCv5Yqo5pe26Kem5Y+R55qE5pa55rOVXG4gKi9cbmV4cG9ydCBmdW5jdGlvbiBsb2FkKCkgeyB9XG5cbi8qKlxuICogQGVuIE1ldGhvZCB0cmlnZ2VyZWQgd2hlbiB1bmluc3RhbGxpbmcgdGhlIGV4dGVuc2lvblxuICogQHpoIOWNuOi9veaJqeWxleaXtuinpuWPkeeahOaWueazlVxuICovXG5leHBvcnQgZnVuY3Rpb24gdW5sb2FkKCkgeyB9XG4iXX0=
+
+// source/main.ts
+var pending = null, methods = {
+  openPanel() {
+    Editor.Panel.open(package_default.name);
+  },
+  /** Open the Sprite Editor on an image / atlas asset (uuid). */
+  async editAsset(uuid) {
+    uuid && (pending = uuid, await Editor.Panel.open(package_default.name), Editor.Message.send(package_default.name, "panel-load-asset", uuid));
+  },
+  takePending() {
+    let uuid = pending;
+    return pending = null, uuid;
+  }
+};
+function load() {
+}
+function unload() {
+}
+// Annotate the CommonJS export names for ESM import in node:
+0 && (module.exports = {
+  load,
+  methods,
+  unload
+});
+//# sourceMappingURL=main.js.map
