@@ -1,3 +1,4 @@
 node_modules/
 tests/preview/out/
 tests/.out/
+dist/**/*.map
