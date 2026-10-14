@@ -1,0 +1,13 @@
+{
+    "extends": "./base.tsconfig.json",
+    "compilerOptions": {
+        "noEmit": true,
+        "rootDir": "./source",
+        "lib": ["ES2019", "DOM", "DOM.Iterable"],
+        "types": [
+            "node",
+            "@cocos/creator-types/editor",
+        ]
+    },
+    "include": ["source/**/*.ts"]
+}

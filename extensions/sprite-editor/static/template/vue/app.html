@@ -1,0 +1,229 @@
+<div ref="root" class="se" tabindex="-1" @keydown="onKeyDown" @keyup="onKeyUp" @mousedown.capture="focusRoot" @mousedown="closePopups">
+    <!-- Toolbar (Unity: Sprite Editor ▾ | Slice ▾ | Trim .... Revert | Apply | alpha | zoom) -->
+    <div class="tb">
+        <button class="tb-btn tb-texture" :disabled="!s.texture" :title="s.texture ? s.texture.imageUrl + '\n(bấm để hiện trong Assets)' : ''" @click="reveal">
+            <svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1" fill="none" stroke="currentColor"/><circle cx="5.5" cy="6" r="1.3" fill="currentColor"/><path d="M2 12.5l4-4 3 3 2-2 3 3" fill="none" stroke="currentColor"/></svg>
+            <span class="tb-texture-name">{{ s.texture ? s.texture.fileName : 'No Texture' }}</span>
+            <span v-if="dirty" class="tb-dirty" title="Có thay đổi chưa Apply">*</span>
+        </button>
+        <button ref="sliceBtn" class="tb-btn tb-drop" :class="{ on: s.sliceOpen }" :disabled="!canEdit" @mousedown.stop @click="toggleSlice">
+            Slice<span class="caret"></span>
+        </button>
+        <button class="tb-btn" :disabled="!canEdit || !selectionCount" title="Thu khung về sát pixel thật" @click="store.trimSelected()">Trim</button>
+        <span class="tb-flex"></span>
+        <button class="tb-btn edge-l" :disabled="!dirty || s.applying" @click="store.revert()">Revert</button>
+        <button class="tb-btn" :class="{ accent: dirty }" :disabled="!dirty || !canEdit || s.applying" title="Lưu vào .plist (Ctrl+S)" @click="store.apply()">Apply</button>
+        <button class="tb-btn tb-icon" :class="{ on: s.showAlpha }" :disabled="!s.texture" title="Xem kênh Alpha" @click="s.showAlpha = !s.showAlpha">
+            <svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5.5" fill="none" stroke="currentColor"/><path d="M8 2.5a5.5 5.5 0 0 1 0 11z" fill="currentColor"/></svg>
+        </button>
+        <input class="tb-zoom" type="range" min="0" max="1000" :value="zoomSlider" :disabled="!s.texture" :title="'Zoom ' + zoomLabel" @input="onZoomSlider" @dblclick="fit" />
+    </div>
+
+    <div class="body">
+        <canvas ref="canvas" class="view"></canvas>
+
+        <div v-if="!s.texture && !s.loading" class="empty">
+            <div class="empty-title">No texture selected</div>
+            <div class="empty-text">Chọn một ảnh trong <b>Assets</b>, hoặc chuột phải ảnh → <b>Sprite Editor</b>.</div>
+            <button class="btn" @click="openSelected">Mở ảnh đang chọn</button>
+            <div class="empty-keys">
+                <span><kbd>Kéo</kbd> vùng trống: tạo sprite</span>
+                <span><kbd>Lăn chuột</kbd> zoom · <kbd>Chuột giữa</kbd>/<kbd>Alt</kbd>+kéo: di chuyển</span>
+                <span><kbd>F</kbd> canh khung · <kbd>Del</kbd> xóa · <kbd>Ctrl+Z</kbd> hoàn tác · <kbd>Ctrl+S</kbd> Apply</span>
+            </div>
+        </div>
+
+        <div v-if="s.texture && (s.readOnly || s.warning)" class="helpboxes">
+            <div v-if="s.readOnly" class="helpbox error">
+                <span class="hb-icon">!</span><span>{{ s.readOnly }}</span>
+            </div>
+            <div v-else class="helpbox warn">
+                <span class="hb-icon">!</span><span>{{ s.warning }}</span>
+                <button class="hb-close" title="Ẩn" @click="s.warning = null">×</button>
+            </div>
+        </div>
+
+        <transition name="fade">
+            <div v-if="noticeVisible" class="notice" :class="{ error: s.noticeError }">{{ s.notice }}</div>
+        </transition>
+
+        <div v-if="s.loading || s.applying" class="busy">{{ s.applying ? 'Applying…' : 'Loading…' }}</div>
+
+        <!-- Sprite inspector (Unity: floating "Sprite" box at the bottom-right) -->
+        <div v-if="s.texture && selectionCount" class="inspector" @mousedown.stop>
+            <div class="win-title">Sprite<span v-if="selectionCount > 1" class="muted"> ({{ selectionCount }} selected)</span></div>
+            <template v-if="single">
+                <div class="row">
+                    <span class="lbl">Name</span>
+                    <input class="field grow" :class="{ invalid: nameError }" type="text" spellcheck="false" :title="nameError"
+                        :disabled="!canEdit" v-model="nameDraft" @change="commitName" @keydown.enter="$event.target.blur()" />
+                </div>
+                <div class="row">
+                    <span class="lbl" title="Gốc toạ độ ở góc trên-trái của ảnh">Position</span>
+                    <div class="pair">
+                        <num-field label="X" v-model="fx" :min="0" :disabled="!canEdit"></num-field>
+                        <num-field label="Y" v-model="fy" :min="0" :disabled="!canEdit"></num-field>
+                    </div>
+                </div>
+                <div class="row">
+                    <span class="lbl"></span>
+                    <div class="pair">
+                        <num-field label="W" v-model="fw" :min="1" :disabled="!canEdit"></num-field>
+                        <num-field label="H" v-model="fh" :min="1" :disabled="!canEdit"></num-field>
+                    </div>
+                </div>
+                <div class="row">
+                    <span class="lbl" title="9-slice: dùng với Sprite Type = Sliced">Border</span>
+                    <div class="pair">
+                        <num-field label="L" v-model="bl" :min="0" :disabled="!canEdit"></num-field>
+                        <num-field label="T" v-model="bt" :min="0" :disabled="!canEdit"></num-field>
+                    </div>
+                </div>
+                <div class="row">
+                    <span class="lbl"></span>
+                    <div class="pair">
+                        <num-field label="R" v-model="br" :min="0" :disabled="!canEdit"></num-field>
+                        <num-field label="B" v-model="bb" :min="0" :disabled="!canEdit"></num-field>
+                    </div>
+                </div>
+            </template>
+            <div class="row">
+                <span class="lbl">Pivot</span>
+                <select class="field grow" v-model="pivotPreset" :disabled="!canEdit">
+                    <option v-if="pivotPreset === ''" value="" disabled>—</option>
+                    <option v-for="o in pivotOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
+                </select>
+            </div>
+            <template v-if="single">
+                <div class="row">
+                    <span class="lbl">Pivot Unit Mode</span>
+                    <select class="field grow" v-model="s.pivotUnit">
+                        <option value="normalized">Normalized</option>
+                        <option value="pixels">Pixels</option>
+                    </select>
+                </div>
+                <div class="row">
+                    <span class="lbl">Custom Pivot</span>
+                    <div class="pair">
+                        <num-field label="X" v-model="pivotX" :step="s.pivotUnit === 'pixels' ? 1 : 0.01" :digits="s.pivotUnit === 'pixels' ? 2 : 4"
+                            :disabled="!canEdit || pivotPreset !== 'custom'"></num-field>
+                        <num-field label="Y" v-model="pivotY" :step="s.pivotUnit === 'pixels' ? 1 : 0.01" :digits="s.pivotUnit === 'pixels' ? 2 : 4"
+                            :disabled="!canEdit || pivotPreset !== 'custom'"></num-field>
+                    </div>
+                </div>
+            </template>
+            <div v-else class="row actions">
+                <button class="btn" :disabled="!canEdit" @click="store.trimSelected()">Trim</button>
+                <button class="btn" :disabled="!canEdit" @click="store.deleteSelected()">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slice popup (Unity: Type / Pivot / Method / Slice) -->
+    <div v-if="s.sliceOpen" class="popup slice" :style="slicePopupStyle" @mousedown.stop @keydown.stop>
+        <div class="row">
+            <span class="lbl">Type</span>
+            <select class="field grow" v-model="s.slice.type">
+                <option value="auto">Automatic</option>
+                <option value="cell-size">Grid By Cell Size</option>
+                <option value="cell-count">Grid By Cell Count</option>
+            </select>
+        </div>
+
+        <template v-if="s.slice.type === 'auto'">
+            <div class="row">
+                <span class="lbl" title="Cách tách nền: Alpha cho ảnh trong suốt, Color cho ảnh có nền màu">Background</span>
+                <select class="field grow" v-model="s.slice.auto.mode">
+                    <option value="auto">Auto</option>
+                    <option value="alpha">Alpha</option>
+                    <option value="color">Color (from corners)</option>
+                </select>
+            </div>
+            <div class="row">
+                <span class="lbl" title="Pixel có alpha ≥ giá trị này được tính là sprite">Alpha Tolerance</span>
+                <num-field class="grow" v-model="s.slice.auto.alphaThreshold" :min="1" :max="255"></num-field>
+            </div>
+            <div v-if="s.slice.auto.mode === 'color'" class="row">
+                <span class="lbl" title="Độ lệch màu tối đa so với màu nền">Color Tolerance</span>
+                <num-field class="grow" v-model="s.slice.auto.colorTolerance" :min="0" :max="255"></num-field>
+            </div>
+            <div class="row">
+                <span class="lbl" title="Bỏ các đốm có chiều rộng hoặc cao nhỏ hơn giá trị này">Minimum Size</span>
+                <num-field class="grow" v-model="s.slice.auto.minSize" :min="1"></num-field>
+            </div>
+            <div class="row">
+                <span class="lbl" title="Gộp các phần cách nhau ít hơn N px thành một sprite">Merge Distance</span>
+                <num-field class="grow" v-model="s.slice.auto.mergeDistance" :min="0"></num-field>
+            </div>
+            <div class="row">
+                <span class="lbl" title="Cắt các cầu nối mỏng giữa hai sprite dính nhau">Separate</span>
+                <num-field class="grow" v-model="s.slice.auto.separate" :min="0" :max="16"></num-field>
+            </div>
+            <div class="row">
+                <span class="lbl" title="Nới rộng mỗi khung thêm N px">Extrude Size</span>
+                <num-field class="grow" v-model="s.slice.auto.extrude" :min="0" :max="64"></num-field>
+            </div>
+        </template>
+
+        <template v-else>
+            <div v-if="s.slice.type === 'cell-size'" class="row">
+                <span class="lbl">Pixel Size</span>
+                <div class="pair">
+                    <num-field label="X" v-model="s.slice.grid.cellW" :min="1"></num-field>
+                    <num-field label="Y" v-model="s.slice.grid.cellH" :min="1"></num-field>
+                </div>
+            </div>
+            <div v-else class="row">
+                <span class="lbl" :title="'Ô: ' + countCell.w + ' × ' + countCell.h + ' px'">Column &amp; Row</span>
+                <div class="pair">
+                    <num-field label="C" v-model="s.slice.grid.cols" :min="1"></num-field>
+                    <num-field label="R" v-model="s.slice.grid.rows" :min="1"></num-field>
+                </div>
+            </div>
+            <div class="row">
+                <span class="lbl">Offset</span>
+                <div class="pair">
+                    <num-field label="X" v-model="s.slice.grid.offsetX" :min="0"></num-field>
+                    <num-field label="Y" v-model="s.slice.grid.offsetY" :min="0"></num-field>
+                </div>
+            </div>
+            <div class="row">
+                <span class="lbl">Padding</span>
+                <div class="pair">
+                    <num-field label="X" v-model="s.slice.grid.padX" :min="0"></num-field>
+                    <num-field label="Y" v-model="s.slice.grid.padY" :min="0"></num-field>
+                </div>
+            </div>
+            <div class="row">
+                <span class="lbl">Keep Empty Rects</span>
+                <input class="check" type="checkbox" v-model="s.slice.keepEmpty" />
+                <span v-if="s.slice.type === 'cell-count'" class="muted hint">{{ countCell.w }} × {{ countCell.h }} px</span>
+            </div>
+        </template>
+
+        <div class="row">
+            <span class="lbl">Pivot</span>
+            <select class="field grow" v-model="s.slice.pivot">
+                <option v-for="o in pivotOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
+            </select>
+        </div>
+        <div v-if="s.slice.pivot === 'custom'" class="row">
+            <span class="lbl">Custom Pivot</span>
+            <div class="pair">
+                <num-field label="X" v-model="s.slice.pivotX" :step="0.01" :digits="4"></num-field>
+                <num-field label="Y" v-model="s.slice.pivotY" :step="0.01" :digits="4"></num-field>
+            </div>
+        </div>
+        <div class="row">
+            <span class="lbl" title="Delete Existing: thay toàn bộ · Smart: giữ tên/pivot của khung trùng vị trí · Safe: chỉ thêm khung mới không chồng lên khung cũ">Method</span>
+            <select class="field grow" v-model="s.slice.method">
+                <option value="delete">Delete Existing</option>
+                <option value="smart">Smart</option>
+                <option value="safe">Safe</option>
+            </select>
+        </div>
+        <div class="row end">
+            <button class="btn" :disabled="sliceBlocked" @click="store.doSlice()">Slice</button>
+        </div>
+    </div>
+</div>
